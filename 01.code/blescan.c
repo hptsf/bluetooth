@@ -5,6 +5,7 @@
 #define	SCAN_RESULT_MAX	20
 
 typedef struct __DEVICE_DESC{
+    char rssi;
 	char addr[ADDR_STR_LEN];
 	char name[DEVICE_NAME_LEN];
 }DeviceDesc;
@@ -25,7 +26,7 @@ static void sigint_handler(int sig)
 	run_flag = 0;
 }
 
-static bool add_result(const char *addr, const char *name)
+static bool add_result(const char *addr, const char *name, char rssi)
 {
 	int i;
 	int len1;
@@ -46,7 +47,8 @@ static bool add_result(const char *addr, const char *name)
 		return false;
 	}
 
-	fprintf(stdout, "Get a new: %s\t\t%s\n", addr, name);
+	fprintf(stdout, "Get a new: %s\t%d\t%s\n", addr, rssi, name);
+    s_res.desc[s_res.num].rssi = rssi;
 	memcpy(s_res.desc[s_res.num].addr, addr, len1 + 1);
 	memcpy(s_res.desc[s_res.num].name, name, len2 + 1);
 	s_res.num ++;
@@ -54,7 +56,7 @@ static bool add_result(const char *addr, const char *name)
 	return true;
 }
 
-static void eir_parse_name(uint8_t *eir, size_t eir_len,
+static bool eir_parse_name(uint8_t *eir, size_t eir_len,
 						char *buf, size_t buf_len)
 {
 #define EIR_NAME_SHORT              0x08  /* shortened local name */
@@ -82,7 +84,7 @@ static void eir_parse_name(uint8_t *eir, size_t eir_len,
 				goto failed;
 
 			memcpy(buf, &eir[2], name_len);
-			return;
+			return true;
 		}
 
 		offset += field_len + 1;
@@ -91,6 +93,7 @@ static void eir_parse_name(uint8_t *eir, size_t eir_len,
 
 failed:
 	snprintf(buf, buf_len, "(unknown)");
+    return false;
 }
 
 static int output_scan_result(int dd, unsigned char filter_type)
@@ -99,6 +102,7 @@ static int output_scan_result(int dd, unsigned char filter_type)
 	struct hci_filter nf, of;
 	socklen_t olen;
 	int len;
+    char rssi = 0;
 
 	olen = sizeof(of);
 	if (getsockopt(dd, SOL_HCI, HCI_FILTER, &of, &olen) < 0) {
@@ -144,6 +148,7 @@ static int output_scan_result(int dd, unsigned char filter_type)
 
 		/* Ignoring multiple reports */
 		info = (le_advertising_info *) (meta->data + 1);
+        rssi = (signed char)info->data[info->length];
 //		if (check_report_filter(filter_type, info)) {
 		if(1){
 			char name[30];
@@ -151,11 +156,8 @@ static int output_scan_result(int dd, unsigned char filter_type)
 			memset(name, 0, sizeof(name));
 
 			ba2str(&info->bdaddr, addr);
-			eir_parse_name(info->data, info->length,
-							name, sizeof(name) - 1);
-
-	//		printf("%s %s\n", addr, name);
-			add_result(addr, name);
+			if(eir_parse_name(info->data, info->length, name, sizeof(name) - 1))
+			    add_result(addr, name, rssi);
 		}
 	}
 
