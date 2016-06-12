@@ -9,7 +9,7 @@ CFLAGS = -O0 -g -Wall
 LDFLAGS = -lpthread -lbluetooth
 
 SRCS = $(wildcard *.c)
-OBJS = $(patsubst %c, %o, $(SRCS))
+OBJS = $(patsubst %.c, %.o, $(SRCS))
 
 TARGET = $(OBJ1) $(OBJ2)
 all: $(TARGET)
