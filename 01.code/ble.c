@@ -94,7 +94,7 @@ static int btSendBuff(int sock, unsigned char *buf, int len, int w_type, unsigne
     }
     t_buf[0] = w_type;
     t_buf[1] = handle & 0xFF;
-    t_buf[2] = (handle << 8) & 0xFF;
+    t_buf[2] = (handle >> 8) & 0xFF;
     memcpy(&t_buf[3], buf, len);
 
     iov.iov_base = t_buf;
